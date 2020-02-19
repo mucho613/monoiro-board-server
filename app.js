@@ -1,21 +1,16 @@
-const History = require('./History.js');
+const fs = require('fs');
 
-const express = require('express');
-const app = express();
-
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
-const PORT = process.env.PORT || 8080;
-
-const { Image } = require('image-js');
-
-const historyQueueMaxLength = 200;
-
-const history = new History(historyQueueMaxLength, io);
-
-http.listen(PORT, () => {
-  console.log('Running at Port ' + PORT);
+const server = require('https').createServer({
+  key: fs.readFileSync(''),
+  cert: fs.readFileSync('')
 });
+const io = require('socket.io')(server);
+const PORT = process.env.PORT || 443;
+server.listen(PORT);
+
+const History = require('./History.js');
+const historyQueueMaxLength = 50;
+const history = new History(historyQueueMaxLength, io);
 
 io.on('connection', socket => {
   // 新しく入ったユーザーのために、描いてたやつを送信する
