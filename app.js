@@ -29,22 +29,22 @@ io.on('connection', socket => {
   })
 
   socket.on('action start', tool => {
-    history.actionStart(socket.id, tool);
     socket.broadcast.emit('action start', socket.id, tool);
+    history.actionStart(socket.id, tool);
   });
 
   socket.on('action update', attribute => {
-    history.actionUpdate(socket.id, attribute);
     socket.broadcast.emit('action update', socket.id, attribute);
+    history.actionUpdate(socket.id, attribute);
   });
 
   socket.on('action end', () => {
-    history.actionEnd(socket.id);
     socket.broadcast.emit('action end', socket.id);
+    history.actionEnd(socket.id);
   });
 
   socket.on('undo', () => {
-    history.undo(socket.id);
     socket.broadcast.emit('undo', socket.id);
+    history.undo(socket.id);
   });
 });
