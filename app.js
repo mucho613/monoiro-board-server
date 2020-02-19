@@ -1,65 +1,50 @@
+const History = require('./History.js');
+
 const express = require('express');
 const app = express();
 
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 8080;
 
-const { createCanvas } = require('canvas')
+const { Image } = require('image-js');
 
-let layer = createCanvas(2000, 2000);
-let ctx = layer.getContext('2d');
+const historyQueueMaxLength = 200;
+
+const history = new History(historyQueueMaxLength, io);
 
 http.listen(PORT, () => {
   console.log('Running at Port ' + PORT);
 });
 
-// その他のリクエストに対する404エラー
-app.use((req, res) => {
-  res.sendStatus(404);
-});
-
 io.on('connection', socket => {
   // 新しく入ったユーザーのために、描いてたやつを送信する
-  let base64 = layer.toDataURL();
-  socket.emit('init', { imageData: base64 });
-  console.log("New connection established. Image transmitted.");
+  socket.emit('init', {
+    historyQueue: history.getQueue()
+  });
+  console.log("New connection established", socket.id);
 
-  // クライアントからメッセージ受信
-  socket.on('clear send', () => {
-    socket.broadcast.emit('clear user');
-    // サーバー側でも全消しする
-    allClear();
+  socket.on('request fixed image', () => {
+    socket.emit('fixed image', history.getFixedImageBase64());
+  })
+
+  socket.on('action start', tool => {
+    history.actionStart(socket.id, tool);
+    socket.broadcast.emit('action start', socket.id, tool);
   });
 
-  // クライアントからメッセージ受信
-  socket.on('server send', msg => {
-    socket.broadcast.emit('send user', msg);
-    // サーバー側でも描画する
-    drawCore(msg.x1, msg.y1, msg.x2, msg.y2, msg.color, msg.thickness)
+  socket.on('action update', attribute => {
+    history.actionUpdate(socket.id, attribute);
+    socket.broadcast.emit('action update', socket.id, attribute);
   });
 
-  // 切断
-  socket.on('disconnect', () => {
-    // io.sockets.emit('user disconnected');
+  socket.on('action end', () => {
+    history.actionEnd(socket.id);
+    socket.broadcast.emit('action end', socket.id);
+  });
+
+  socket.on('undo', () => {
+    history.undo(socket.id);
+    socket.broadcast.emit('undo', socket.id);
   });
 });
-
-function drawCore(x1, y1, x2, y2, color, thickness) {
-  ctx.beginPath();
-  ctx.globalAlpha = "#555555";
-
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.lineCap = "round";
-  ctx.lineWidth = thickness;
-  ctx.strokeStyle = color;
-
-  ctx.stroke();
-}
-
-function allClear() {
-  ctx.beginPath();
-  ctx.fillStyle = "#f5f5f5";
-  ctx.fillRect(0, 0, 2000, 2000);
-}
